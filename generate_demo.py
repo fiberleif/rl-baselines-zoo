@@ -74,53 +74,72 @@ def traj_1_generator(model, env, deterministic):
     print("Episode Reward:{}".format(cur_ep_ret))
     print("Episode Length:{}".format(cur_ep_len))
 
-    assert infos is not None
+    assert infos
     episode_infos = infos[0].get('episode')
-    print("Atari Episode Score: {}".format(episode_infos['r']))
-    print("Atari Episode Length:{}".format(episode_infos['l']))
+    episode_infos_return = None
+    episode_infos_length = None
+    if episode_infos:
+        print("ale.lives: {}".format(infos[0].get('ale.lives')))
+        print("Atari Episode Score: {}".format(episode_infos['r']))
+        print("Atari Episode Length:{}".format(episode_infos['l']))
+        episode_infos_return = episode_infos['r']
+        episode_infos_length = episode_infos['l']
     # assert episode_infos['l'] == cur_ep_len
 
     traj = {"ob": obs, "rew": rews, "done": dones, "ac": acs,
-            "ep_ret": cur_ep_ret, "ep_len": cur_ep_len, "ep_score": episode_infos['r']}
+            "ep_ret": cur_ep_ret, "ep_len": cur_ep_len}
 
-    return traj
+    return traj, episode_infos_return, episode_infos_length
 
 
 def runner(env, env_id, model, number_trajs, deterministic, save=True, save_dir=None):
-
-    obs_list = []
-    acs_list = []
-    len_list = []
-    ret_list = []
-    score_list = []
-
-    for _ in tqdm(range(number_trajs)):
-        traj = traj_1_generator(model, env, deterministic)
-        obs, acs, ep_len, ep_ret, ep_score = traj['ob'], traj['ac'], traj['ep_len'], traj['ep_ret'], traj['ep_score']
-        obs_list.append(obs)
-        acs_list.append(acs)
-        len_list.append(ep_len)
-        ret_list.append(ep_ret)
-        score_list.append(ep_score)
 
     if deterministic:
         print('using deterministic policy.')
     else:
         print('using stochastic policy.')
 
+    obs_list = []
+    acs_list = []
+    len_list = []
+    ret_list = []
+    info_score_list = []
+    info_length_list = []
+    lives_num = 0
+    lives_countable = True
+
+    for _ in tqdm(range(number_trajs)):
+        traj, episode_infos_score, episode_infos_length = traj_1_generator(model, env, deterministic)
+        obs, acs, ep_len, ep_ret = traj['ob'], traj['ac'], traj['ep_len'], traj['ep_ret']
+        obs_list.append(obs)
+        acs_list.append(acs)
+        len_list.append(ep_len)
+        ret_list.append(ep_ret)
+        if lives_countable:
+            lives_num += 1
+        if episode_infos_score:
+            info_score_list.append(episode_infos_score)
+            lives_countable = False
+        if episode_infos_length:
+            info_length_list.append(episode_infos_length)
+
     if save:
         filename = save_dir + "/" + env_id
         np.savez(filename, obs=np.array(obs_list), acs=np.array(acs_list),
-                 lens=np.array(len_list), rets=np.array(ret_list), scores=np.array(score_list))
+                 lens=np.array(len_list), rets=np.array(ret_list))
 
     avg_len = sum(len_list)/len(len_list)
     avg_ret = sum(ret_list)/len(ret_list)
-    avg_score = sum(score_list)/len(score_list)
+    avg_info_score = sum(info_score_list)/len(info_score_list)
+    avg_info_length = sum(info_length_list)/len(info_length_list)
+    print("Live number of this game:", lives_num)
+    print("Transitions:", sum(len_list))
+    print("Expert Rewards:", avg_info_score/lives_num)
     print("Average length:", avg_len)
     print("Average return:", avg_ret)
-    print('Average score', avg_score)
+    print('Average info score', avg_info_score)
+    print('Average info length', avg_info_length)
 
-    return avg_len, avg_ret, avg_score
 
 
 def main():
@@ -191,7 +210,9 @@ def main():
 
     # Force deterministic for DQN, DDPG, SAC and HER (that is a wrapper around)
     deterministic = args.deterministic or algo in ['dqn', 'ddpg', 'sac', 'her', 'td3'] and not args.stochastic
-    save_dir = log_path
+    save_dir = os.path.join("expert_trajs", algo)
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
 
     runner(env, env_id, model, args.n_episodes, deterministic, save=True, save_dir=save_dir)
 
