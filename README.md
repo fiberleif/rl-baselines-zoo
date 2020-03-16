@@ -15,6 +15,13 @@ Goals of this repository:
 3. Provide tuned hyperparameters for each environment and RL algorithm
 4. Have fun with the trained agents!
 
+## Generate expert demonstrations using a Trained Agent
+ If the trained agent exists, then you can see it in action using:
+```
+python generate_demo.py --algo algo_name --env env_id
+```
+The code will seek for trained policy automatically under ./trained_agents/algo_name/env_id, and return the generated expert demonstrations in ./expert_trajs/algo_name/env_id (by default 20 expert trajs).
+
 ## Enjoy a Trained Agent
 
 
