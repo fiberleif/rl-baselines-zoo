@@ -20,7 +20,7 @@ Goals of this repository:
 ```
 python generate_demo.py --algo algo_name --env env_id
 ```
-The code will seek for trained policy automatically under ./trained_agents/algo_name/env_id, and return the generated expert demonstrations in ./expert_trajs/algo_name/env_id (by default 20 expert trajs).
+The code will seek for trained policy automatically under `./trained_agents/algo_name/env_id`, and return the generated expert demonstrations in `./expert_trajs/algo_name/env_id` (by default, generate 20 expert trajs).
 
 ## Enjoy a Trained Agent
 
