@@ -84,7 +84,6 @@ def traj_1_generator(model, env, deterministic):
     print("Episode Length:{}".format(cur_ep_len))
 
     # assert episode_infos['l'] == cur_ep_len
-
     traj = {"ob": obs, "rew": rews, "done": dones, "ac": acs,
             "ep_ret": episode_infos_return, "ep_len": episode_infos_length}
 
@@ -102,8 +101,6 @@ def runner(env, env_id, model, number_trajs, deterministic, save=True, save_dir=
     acs_list = []
     len_list = []
     ret_list = []
-    info_score_list = []
-    info_length_list = []
 
     for _ in tqdm(range(number_trajs)):
         traj = traj_1_generator(model, env, deterministic)
@@ -112,24 +109,21 @@ def runner(env, env_id, model, number_trajs, deterministic, save=True, save_dir=
         acs_list.append(acs)
         len_list.append(ep_len)
         ret_list.append(ep_ret)
-        info_score_list.append(ep_ret)
-        info_length_list.append(ep_len)
 
     if save:
         filename = save_dir + "/" + env_id
         np.savez(filename, obs=np.array(obs_list), acs=np.array(acs_list),
                  lens=np.array(len_list), rets=np.array(ret_list))
 
-    avg_len = sum(len_list)/len(len_list)
-    avg_ret = sum(ret_list)/len(ret_list)
-    avg_info_score = sum(info_score_list)/len(info_score_list)
-    avg_info_length = sum(info_length_list)/len(info_length_list)
+    mean_len = np.mean(len_list)
+    std_len = np.std(len_list)
+    mean_return = np.mean(ret_list)
+    std_return = np.std(ret_list)
     print("Transitions:", sum(len_list))
-    print("Average length:", avg_len)
-    print("Average return:", avg_ret)
-    print('Average info score', avg_info_score)
-    print('Average info length', avg_info_length)
-
+    print("Mean of length:", mean_len)
+    print("Std of length:", std_len)    
+    print("Mean of return:", mean_return)
+    print("Std of return:", std_return)
 
 
 def main():
@@ -150,10 +144,14 @@ def main():
                         type=int)
     parser.add_argument('--no-render', action='store_true', default=False,
                         help='Do not render the environment (useful for tests)')
-    parser.add_argument('--deterministic', action='store_true', default=False,
-                        help='Use deterministic actions')
-    parser.add_argument('--stochastic', action='store_true', default=False,
-                        help='Use stochastic actions (for DDPG/DQN/SAC)')
+    # for deterministic (bool type)
+    parser.add_argument('--deterministic', dest='deterministic', action='store_true')
+    parser.add_argument('--no-deterministic', dest='deterministic', action='store_false')
+    parser.set_defaults(deterministic=True) # true by default 
+    # parser.add_argument('--deterministic', action='store_true', default=False,
+                        # help='Use deterministic actions')
+    # parser.add_argument('--stochastic', action='store_true', default=False,
+                        # help='Use stochastic actions (for DDPG/DQN/SAC)')
     parser.add_argument('--norm-reward', action='store_true', default=False,
                         help='Normalize reward if applicable (trained with VecNormalize)')
     parser.add_argument('--seed', help='Random generator seed', type=int, default=0)
@@ -199,8 +197,10 @@ def main():
     model = ALGOS[algo].load(model_path, env=env)
 
     # Force deterministic for DQN, DDPG, SAC and HER (that is a wrapper around)
-    deterministic = args.deterministic or algo in ['dqn', 'ddpg', 'sac', 'her', 'td3'] and not args.stochastic
-    save_dir = os.path.join("expert_trajs_by_info", algo)
+    # deterministic = args.deterministic or algo in ['dqn', 'ddpg', 'sac', 'her', 'td3'] and not args.stochastic
+    deterministic = args.deterministic
+
+    save_dir = os.path.join("expert_trajs_by_info_deterministic_with_std", algo)
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
